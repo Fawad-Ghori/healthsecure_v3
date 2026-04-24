@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Edit Patient #{{ patient.id }} — HealthSecure{% endblock %}
+
+{% block content %}
+<!--
+  REGULATORY RELEVANCE — HIPAA §164.312(c)(1) — Integrity Controls:
+  Every edit is tracked with updated_by and updated_at. The original
+  created_by / created_at remain unchanged, preserving the full
+  lifecycle of the record — who created it and who last modified it.
+  This creates an immutable modification history.
+-->
+<div class="page page-narrow">
+
+  <div class="page-head">
+    <div>
+      <h2 class="page-title">Edit Patient Record</h2>
+      <p class="page-sub">ID #{{ patient.id }} — Changes tracked with <strong>updated_by</strong> and <strong>updated_at</strong></p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back</a>
+  </div>
+
+  <!-- Regulation reminder -->
+  <div class="info-banner info-purple">
+    <strong>HIPAA §164.312(c)(1):</strong> All modifications are logged to the
+    audit trail. The fields <code>updated_by</code> (= <em>{{ username }}</em>) and
+    <code>updated_at</code> will be recorded automatically on save.
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h3 class="panel-title">Editing: {{ patient.name }}</h3>
+      <p class="panel-sub">Modifying as: <strong>{{ username }}</strong> ({{ role }})</p>
+    </div>
+
+    <form method="POST"
+          action="{{ url_for('edit_patient', patient_id=patient.id) }}"
+          class="form-body form-wide">
+
+      <div class="form-row-2">
+        <div class="field-group">
+          <label class="field-label">Full Name</label>
+          <input type="text" name="name" class="field-input"
+                 value="{{ patient.name }}" required/>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Age</label>
+          <input type="number" name="age" class="field-input"
+                 value="{{ patient.age }}" min="1" max="150" required/>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="field-group">
+          <label class="field-label">Gender</label>
+          <select name="gender" class="field-input" required>
+            <option value="Male"   {% if patient.gender == 'Male'   %}selected{% endif %}>Male</option>
+            <option value="Female" {% if patient.gender == 'Female' %}selected{% endif %}>Female</option>
+            <option value="Other"  {% if patient.gender == 'Other'  %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Medical Condition</label>
+          <input type="text" name="condition" class="field-input"
+                 value="{{ patient.condition }}" required/>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

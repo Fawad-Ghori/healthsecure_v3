@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}HealthSecure{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+</head>
+<body>
+
+<!-- =========================================================================
+     NAVBAR
+     The Audit Logs link is hidden from Staff in HTML (UX), but the real
+     security enforcement is the @admin_required decorator in app.py which
+     re-checks the server session on every single request.
+     ========================================================================= -->
+{% if session.username %}
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="nav-logo">🏥</span>
+    <span class="nav-title">HealthSecure</span>
+    <span class="nav-ver">v3.0</span>
+  </div>
+
+  <div class="nav-center">
+    <a href="{{ url_for('dashboard') }}"
+       class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+      Dashboard
+    </a>
+    {% if session.role == 'Admin' %}
+    <a href="{{ url_for('audit_logs') }}"
+       class="nav-link nav-link-admin {% if request.endpoint == 'audit_logs' %}active{% endif %}">
+      🔍 Audit Logs
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="nav-right">
+    <!-- Session timeout indicator -->
+    <div class="session-timer" id="sessionTimer" title="Session inactivity timer">
+      <span class="timer-icon">⏱</span>
+      <span id="timerDisplay">{{ session_timeout | default(20) }}:00</span>
+    </div>
+
+    <!-- Role badge -->
+    <span class="badge badge-{{ session.role | lower }}">{{ session.role }}</span>
+    <span class="nav-user">{{ session.username }}</span>
+    <a href="{{ url_for('logout') }}" class="btn-nav-logout">Logout</a>
+  </div>
+</nav>
+{% endif %}
+
+<!-- =========================================================================
+     FLASH MESSAGES — one-time server messages (success, danger, warning, info)
+     ========================================================================= -->
+<div class="toast-stack" id="toastStack">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+      <div class="toast toast-{{ cat }}">
+        <span class="toast-icon">
+          {% if cat == 'success' %}✓{% elif cat == 'danger' %}✕{% elif cat == 'warning' %}⚠{% else %}ℹ{% endif %}
+        </span>
+        <span class="toast-msg">{{ msg }}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+</div>
+
+<!-- Main page content -->
+<main class="main">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- =========================================================================
+     COMPLIANCE FOOTER — permanent, undismissable
+     REGULATORY RELEVANCE — HIPAA §164.308(a)(5) Workforce Awareness:
+     Staff must be continuously reminded that their actions are monitored
+     and that patient data is legally protected. This footer renders on
+     every single page — it cannot be closed or hidden.
+     ========================================================================= -->
+<footer class="compliance-bar">
+  <div class="compliance-inner">
+    <span class="comp-icon">⚠️</span>
+    <p>
+      Patient data is protected under <strong>HIPAA</strong> and <strong>GDPR</strong>.
+      All actions are logged, audited, and subject to legal review.
+      Unauthorised access or disclosure is a criminal offence.
+    </p>
+  </div>
+</footer>
+
+<!-- =========================================================================
+     SESSION TIMEOUT COUNTDOWN (JavaScript)
+     Displays a live countdown in the navbar. When the timer hits 0:00,
+     the user sees a warning modal and is redirected to /logout.
+     This fulfils HIPAA §164.312(a)(2)(iii) Auto Log-off.
+     ========================================================================= -->
+{% if session.username %}
+<div class="modal-overlay" id="timeoutModal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-icon">⏱</div>
+    <h3>Session Expiring</h3>
+    <p>Your session is about to expire due to inactivity.<br>You will be redirected to the login page.</p>
+    <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout Now</a>
+    <button class="btn btn-secondary" onclick="resetTimer()">Stay Logged In</button>
+  </div>
+</div>
+
+<script>
+  // Session timeout: {{ session_timeout | default(20) }} minutes
+  const TIMEOUT_MINS = {{ session_timeout | default(20) }};
+  let secondsLeft = TIMEOUT_MINS * 60;
+  let timerInterval;
+
+  function formatTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function updateDisplay() {
+    const el = document.getElementById('timerDisplay');
+    if (el) el.textContent = formatTime(secondsLeft);
+
+    const timer = document.getElementById('sessionTimer');
+    if (timer) {
+      timer.classList.toggle('timer-warn', secondsLeft < 120);
+    }
+  }
+
+  function tick() {
+    secondsLeft--;
+    updateDisplay();
+    if (secondsLeft <= 60) {
+      document.getElementById('timeoutModal').style.display = 'flex';
+    }
+    if (secondsLeft <= 0) {
+      window.location.href = "{{ url_for('logout') }}";
+    }
+  }
+
+  function resetTimer() {
+    secondsLeft = TIMEOUT_MINS * 60;
+    document.getElementById('timeoutModal').style.display = 'none';
+    updateDisplay();
+    // Ping the server to reset the server-side timer too
+    fetch('/dashboard', { method: 'GET', credentials: 'same-origin' });
+  }
+
+  // Reset on user activity
+  ['click','keydown','mousemove','scroll'].forEach(evt => {
+    document.addEventListener(evt, () => {
+      if (secondsLeft < TIMEOUT_MINS * 60 - 10) resetTimer();
+    }, { passive: true });
+  });
+
+  timerInterval = setInterval(tick, 1000);
+  updateDisplay();
+</script>
+{% endif %}
+
+<!-- Auto-dismiss toasts after 6 seconds -->
+<script>
+  document.querySelectorAll('.toast').forEach(t => {
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 6000);
+  });
+</script>
+
+</body>
+</html>

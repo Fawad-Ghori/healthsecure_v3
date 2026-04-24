@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — HealthSecure{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- ── Page Header ──────────────────────────────────────────────────────── -->
+  <div class="page-head">
+    <div class="page-head-left">
+      <h2 class="page-title">Patient Records</h2>
+      <div class="access-pill {% if is_admin %}pill-admin{% else %}pill-staff{% endif %}">
+        {% if is_admin %}
+          🔓 Full Access — Admin View
+        {% else %}
+          🔒 Medical Condition Masked — Staff View (HIPAA §164.502(b))
+        {% endif %}
+      </div>
+    </div>
+    <div class="page-head-right">
+      {% if is_admin %}
+      <a href="{{ url_for('audit_logs') }}" class="btn btn-purple">🔍 Audit Logs</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Two-column layout ────────────────────────────────────────────────── -->
+  <div class="dash-grid">
+
+    <!-- LEFT: Add Patient Form ──────────────────────────────────────────── -->
+    <aside class="panel form-panel">
+      <div class="panel-head">
+        <h3 class="panel-title">Register New Patient</h3>
+        <p class="panel-sub">Logging as: <strong>{{ username }}</strong></p>
+      </div>
+
+      <!--
+        NOTE: `created_by` is NOT a form field. It is injected server-side
+        from session["username"] — users cannot forge record attribution.
+        HIPAA §164.312(c)(1) — Integrity Controls.
+      -->
+      <form method="POST" action="{{ url_for('add_patient') }}" class="form-body">
+        <div class="field-group">
+          <label class="field-label">Full Name</label>
+          <input type="text" name="name" class="field-input" placeholder="e.g. Ayesha Khan" required/>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Age</label>
+          <input type="number" name="age" class="field-input" placeholder="e.g. 34" min="1" max="150" required/>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Gender</label>
+          <select name="gender" class="field-input" required>
+            <option value="" disabled selected>Select gender</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Medical Condition</label>
+          <input type="text" name="condition" class="field-input" placeholder="e.g. Hypertension" required/>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">➕ Register Patient</button>
+      </form>
+
+      <!-- Regulatory info box inside the panel -->
+      <div class="reg-box">
+        <p class="reg-title">Regulatory Notes</p>
+        <ul class="reg-list">
+          <li><strong>HIPAA §164.312(c)(1):</strong> All records track who created them and when.</li>
+          <li><strong>HIPAA §164.502(b):</strong> Staff cannot view sensitive medical data.</li>
+          <li><strong>GDPR Art. 5:</strong> Data is processed lawfully and securely.</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- RIGHT: Patient Table ────────────────────────────────────────────── -->
+    <section class="panel table-panel">
+
+      <!-- Table controls: search -->
+      <div class="table-controls">
+        <div class="table-head-left">
+          <h3 class="panel-title">
+            All Patients
+            <span class="count-tag">{{ patients|length }}</span>
+          </h3>
+        </div>
+        <form method="GET" action="{{ url_for('dashboard') }}" class="search-form">
+          <div class="search-wrap">
+            <span class="search-icon">🔎</span>
+            <input type="text" name="search" class="search-input"
+                   placeholder="Search by name…"
+                   value="{{ search_query }}"/>
+            {% if search_query %}
+            <a href="{{ url_for('dashboard') }}" class="search-clear" title="Clear search">✕</a>
+            {% endif %}
+          </div>
+          <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+        </form>
+      </div>
+
+      {% if search_query %}
+      <div class="search-banner">
+        Showing results for <strong>"{{ search_query }}"</strong> — {{ patients|length }} found.
+      </div>
+      {% endif %}
+
+      {% if patients %}
+      <div class="tbl-wrap">
+        <table class="data-tbl">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Age</th>
+              <th>Gender</th>
+              <th>Medical Condition
+                {% if not is_admin %}<span class="col-lock" title="HIPAA Privacy Rule §164.502(b) — masked for Staff">🔒</span>{% endif %}
+              </th>
+              <th>Added By</th>
+              <th>Added At</th>
+              <th>Updated By</th>
+              <th>Updated At</th>
+              {% if is_admin %}<th class="col-actions">Actions</th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in patients %}
+            <tr class="{{ 'row-even' if loop.index is even else 'row-odd' }}">
+              <td class="td-id">{{ p.id }}</td>
+              <td class="td-name">{{ p.name }}</td>
+              <td>{{ p.age }}</td>
+              <td>{{ p.gender }}</td>
+
+              <!--
+                RBAC DATA MASKING:
+                The server already replaced `condition` with "★★★ Restricted ★★★"
+                for Staff. This cell simply renders what the server sent —
+                the real value is never transmitted to the Staff browser.
+              -->
+              <td class="{{ 'td-restricted' if p.masked else '' }}">{{ p.condition }}</td>
+
+              <td class="td-meta">{{ p.created_by }}</td>
+              <td class="td-meta td-mono">{{ p.created_at }}</td>
+              <td class="td-meta">{{ p.updated_by }}</td>
+              <td class="td-meta td-mono">{{ p.updated_at }}</td>
+
+              {% if is_admin %}
+              <td class="td-actions">
+                <!-- Edit button -->
+                <a href="{{ url_for('edit_patient', patient_id=p.id) }}"
+                   class="btn-icon btn-edit" title="Edit patient">✏️</a>
+
+                <!-- Delete button — POST-only form + JS confirm dialog -->
+                <!--
+                  SOFT DELETE: The server marks is_deleted=1 rather than
+                  physically removing the row. This satisfies both GDPR
+                  Art. 17 (right to erasure) and HIPAA 6-year retention.
+                -->
+                <form method="POST"
+                      action="{{ url_for('delete_patient', patient_id=p.id) }}"
+                      class="inline-form"
+                      onsubmit="return confirmDelete('{{ p.name }}')">
+                  <button type="submit" class="btn-icon btn-delete"
+                          title="Delete patient (soft delete — HIPAA compliant)">🗑️</button>
+                </form>
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div><!-- /.tbl-wrap -->
+
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>No patient records found{% if search_query %} matching "{{ search_query }}"{% endif %}.</p>
+        <p class="empty-sub">Use the form on the left to register a patient.</p>
+      </div>
+      {% endif %}
+
+    </section><!-- /.table-panel -->
+  </div><!-- /.dash-grid -->
+</div><!-- /.page -->
+
+<!-- Confirm delete dialog -->
+<script>
+function confirmDelete(name) {
+  return confirm(
+    `⚠ SOFT DELETE CONFIRMATION\n\n` +
+    `Patient: "${name}"\n\n` +
+    `This record will be hidden from all application views.\n` +
+    `It will be RETAINED in the database for compliance purposes\n` +
+    `(HIPAA requires 6-year record retention).\n\n` +
+    `This action will be recorded in the audit log.\n\n` +
+    `Proceed?`
+  );
+}
+</script>
+{% endblock %}

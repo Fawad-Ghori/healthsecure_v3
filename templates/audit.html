@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Audit Logs — HealthSecure{% endblock %}
+
+{% block content %}
+<!--
+  REGULATORY RELEVANCE — HIPAA §164.312(b) — Audit Controls:
+  This page is the compliance officer's primary tool for:
+    1. Reviewing all system activity at a glance
+    2. Filtering by user (e.g., after a termination)
+    3. Filtering by outcome (FAILURE = investigate immediately)
+    4. Identifying unauthorised access attempts (logged by @admin_required)
+
+  All access to this page is itself logged via @admin_required in app.py.
+  Staff cannot reach this URL even if they type it directly.
+-->
+<div class="page">
+
+  <div class="page-head">
+    <div>
+      <h2 class="page-title">Audit Log Viewer</h2>
+      <p class="page-sub">
+        <span class="access-pill pill-admin">🔍 Admin Access — Full Activity Timeline</span>
+      </p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Dashboard</a>
+  </div>
+
+  <!-- HIPAA regulation context banner -->
+  <div class="info-banner info-purple">
+    <strong>HIPAA §164.312(b)</strong> mandates regular review of system activity logs.
+    Use filters to isolate specific users or security events.
+    <span class="text-danger">RED rows</span> = failed attempts — investigate repeated failures.
+    <span class="text-warn">YELLOW rows</span> = soft-deletes and unusual activity.
+  </div>
+
+  <!-- Outcome legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <span class="outcome-chip chip-success">SUCCESS</span>
+      <span class="legend-desc">Normal operation</span>
+    </div>
+    <div class="legend-item">
+      <span class="outcome-chip chip-info">INFO</span>
+      <span class="legend-desc">System event / logout</span>
+    </div>
+    <div class="legend-item">
+      <span class="outcome-chip chip-warning">WARNING</span>
+      <span class="legend-desc">Soft-deletes / unusual</span>
+    </div>
+    <div class="legend-item">
+      <span class="outcome-chip chip-failure">FAILURE</span>
+      <span class="legend-desc">Security alert — investigate</span>
+    </div>
+  </div>
+
+  <!-- ── Filter form ─────────────────────────────────────────────────────── -->
+  <div class="panel filter-panel">
+    <form method="GET" action="{{ url_for('audit_logs') }}" class="filter-form">
+      <div class="filter-row">
+
+        <div class="field-group filter-field">
+          <label class="field-label">Filter by User</label>
+          <select name="filter_user" class="field-input">
+            <option value="">All Users</option>
+            {% for u in unique_users %}
+            <option value="{{ u }}" {% if filter_user == u %}selected{% endif %}>{{ u }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field-group filter-field">
+          <label class="field-label">Filter by Outcome</label>
+          <select name="filter_outcome" class="field-input">
+            <option value="">All Outcomes</option>
+            <option value="SUCCESS" {% if filter_outcome == 'SUCCESS' %}selected{% endif %}>SUCCESS</option>
+            <option value="INFO"    {% if filter_outcome == 'INFO'    %}selected{% endif %}>INFO</option>
+            <option value="WARNING" {% if filter_outcome == 'WARNING' %}selected{% endif %}>WARNING</option>
+            <option value="FAILURE" {% if filter_outcome == 'FAILURE' %}selected{% endif %}>FAILURE</option>
+          </select>
+        </div>
+
+        <div class="filter-btns">
+          <button type="submit" class="btn btn-primary">Apply Filters</button>
+          <a href="{{ url_for('audit_logs') }}" class="btn btn-secondary">Reset</a>
+        </div>
+      </div>
+    </form>
+
+    {% if filter_user or filter_outcome %}
+    <div class="active-filters">
+      Active filters:
+      {% if filter_user %}<span class="filter-chip">User: {{ filter_user }}</span>{% endif %}
+      {% if filter_outcome %}<span class="filter-chip chip-{{ filter_outcome | lower }}">Outcome: {{ filter_outcome }}</span>{% endif %}
+      — {{ logs|length }} result(s)
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Audit Log Table ─────────────────────────────────────────────────── -->
+  <div class="panel">
+
+    {% if logs %}
+    <div class="tbl-wrap">
+      <table class="data-tbl audit-tbl">
+        <thead>
+          <tr>
+            <th style="width:52px">ID</th>
+            <th style="width:165px">Timestamp</th>
+            <th style="width:100px">User</th>
+            <th>Action</th>
+            <th style="width:100px">Outcome</th>
+            <th style="width:120px">IP Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr class="audit-row audit-{{ log.outcome | lower }}">
+            <td class="td-id">{{ log.id }}</td>
+            <td class="td-mono td-meta">{{ log.ts }}</td>
+            <td class="td-name">{{ log.username }}</td>
+            <td class="audit-action">{{ log.action }}</td>
+            <td>
+              <span class="outcome-chip chip-{{ log.outcome | lower }}">{{ log.outcome }}</span>
+            </td>
+            <td class="td-meta td-mono">{{ log.ip }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tbl-footer">
+      Showing {{ logs|length }} entr{{ 'y' if logs|length == 1 else 'ies' }}
+      (max 500 most recent). In production, export to SIEM for long-term retention.
+    </p>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <p>No log entries match the selected filters.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div><!-- /.page -->
+{% endblock %}

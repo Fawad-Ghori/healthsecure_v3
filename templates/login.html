@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Login — HealthSecure{% endblock %}
+
+{% block content %}
+<!--
+  REGULATORY NOTE (HIPAA §164.312(d) — Person Authentication):
+  All users MUST authenticate before accessing ANY patient data.
+  The pre-login warning fulfils the "notice" requirement:
+  users must know their access is monitored before they log in.
+-->
+<div class="auth-page">
+  <div class="auth-bg" aria-hidden="true"></div>
+
+  <div class="auth-card">
+
+    <div class="auth-brand">
+      <span class="auth-logo-icon">🏥</span>
+      <h1 class="auth-title">HealthSecure</h1>
+      <p class="auth-subtitle">Authorised Staff Portal</p>
+    </div>
+
+    <!-- Pre-login legal warning -->
+    <div class="auth-warning">
+      <span>⚠</span>
+      <span>Unauthorised access is prohibited and subject to criminal penalties.
+            All login attempts are recorded and monitored.</span>
+    </div>
+
+    <form method="POST" action="{{ url_for('login') }}" autocomplete="off" class="auth-form">
+      <div class="field-group">
+        <label class="field-label" for="username">Username</label>
+        <input id="username" name="username" type="text" class="field-input"
+               placeholder="Enter your username" required autofocus autocomplete="off"/>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="password">Password</label>
+        <div class="pw-wrap">
+          <input id="password" name="password" type="password" class="field-input"
+                 placeholder="••••••••" required autocomplete="off"/>
+          <button type="button" class="pw-toggle" onclick="
+            var i=document.getElementById('password');
+            i.type=i.type==='password'?'text':'password';
+            this.textContent=i.type==='password'?'👁':'🙈';
+          " title="Toggle password visibility">👁</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Sign In →</button>
+    </form>
+
+    <!-- Demo accounts box (for presentation) -->
+    <div class="demo-box">
+      <p class="demo-heading">Demo Credentials</p>
+      <div class="demo-row">
+        <span class="badge badge-admin">Admin</span>
+        <code>admin / admin123</code>
+        <span class="demo-note">Full access + audit logs</span>
+      </div>
+      <div class="demo-row">
+        <span class="badge badge-staff">Staff</span>
+        <code>staff1 / staff123</code>
+        <span class="demo-note">Medical data masked</span>
+      </div>
+    </div>
+
+  </div><!-- /.auth-card -->
+</div>
+{% endblock %}
