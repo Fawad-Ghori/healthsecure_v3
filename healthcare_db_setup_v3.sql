@@ -1,15 +1,6 @@
 -- =============================================================================
 --  HEALTHSECURE DATABASE — SETUP SCRIPT v3.0
 --  Demonstrates: RBAC, Audit Logging, Record Integrity, Edit Tracking
---
---  Run:  mysql -u root -p < healthcare_db_setup_v3.sql
---        OR paste into MySQL Workbench and Execute All
--- =============================================================================
-
--- DROP DATABASE IF EXISTS healthcare_db;
--- CREATE DATABASE healthcare_db
---     CHARACTER SET utf8mb4
---     COLLATE utf8mb4_unicode_ci;
 
 USE railway;
 
