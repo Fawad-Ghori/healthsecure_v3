@@ -6,12 +6,12 @@
 --        OR paste into MySQL Workbench and Execute All
 -- =============================================================================
 
-DROP DATABASE IF EXISTS healthcare_db;
-CREATE DATABASE healthcare_db
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
+-- DROP DATABASE IF EXISTS healthcare_db;
+-- CREATE DATABASE healthcare_db
+--     CHARACTER SET utf8mb4
+--     COLLATE utf8mb4_unicode_ci;
 
-USE healthcare_db;
+USE railway;
 
 
 -- =============================================================================

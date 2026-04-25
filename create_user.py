@@ -13,9 +13,9 @@ DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
-    "database": os.getenv("DB_NAME")
+    "database": os.getenv("DB_NAME"),
+    "port": os.getenv("DB_PORT", 44493)
 }
-
 
 def main():
     print("\n── HealthSecure v3  —  Create User ──\n")
